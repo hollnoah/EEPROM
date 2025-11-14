@@ -45,8 +45,6 @@
     TEMP2	    EQU 0x28
     TEMP	    EQU 0x29
 
-
-   
  ;Start of Program
  ;Reset vector address
  PSECT resetVect,class=CODE,delta=2 ;-Wl,-presetVect=00h
@@ -109,7 +107,6 @@ Start:
     BCF STATUS,6
     
     BSF PIE1, 1	    ;ENABLES TIMER2 TO MATCH PR2 INTERRUPT
-    ;BSF PIE1, 5	    ;ENABLES EUSART RECIEVE INTERRUPT BIT
     
     MOVLW 0xFF
     MOVWF PR2	    ;LOADING FF FOR MAX COUNT
@@ -120,14 +117,9 @@ Start:
     MOVLW 0xFF
     MOVWF T2CON	    ;TMR 2 ON, 1:16 PRE, 1:5 POST
     
-    ;MOVLW 0x41
-    ;MOVWF ADCON0    ;FOSC8, AN0, A/D NOT IN PROGRESS, A/D ENABLED
-    
     CLRF PIR1
-    ;BCF PIE1,6	    ;DISABLE AD INTERRUPT
     
     MOVLW 0x00
-    ;MOVLW 0xC0
     MOVWF INTCON    ;ENABLE GLOBAL & PERIPHERAL INTERRUPTS
     
     ;BANK 0
