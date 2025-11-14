@@ -290,6 +290,12 @@ KEYPAD:
     BTFSC PORTB, 3
     GOTO Display
     
+    ;POLLING STOP BUTTON
+    BANKSEL PORTA
+    BTFSC PORTA,1
+    GOTO RECORD_DONE
+    ;END POLLING STOP BUTTON
+    
     GOTO KEYPAD
     
 Display:
@@ -359,34 +365,35 @@ READ_EE:
     MOVWF PORTC
     
     RETURN
-
+    
 PLAYBACK:
-    ; use TEMP (your general-purpose counter) for 0..9
+    ; TEMP = playback index (0 .. WRITEPTR-1)
     BANKSEL TEMP
-    CLRF TEMP          ; TEMP = 0
+    CLRF    TEMP          ; TEMP = 0
 
 PB_LOOP:
-    ; move TEMP into EEADR (explicitly select EEADR's bank first)
+    ; compare TEMP to WRITEPTR; if equal -> done
     BANKSEL TEMP
-    MOVF TEMP,W
+    MOVF    TEMP, W
+    BANKSEL WRITEPTR
+    XORWF   WRITEPTR, W   ; W = TEMP XOR WRITEPTR
+    BTFSC   STATUS, 2     ; if Z=0 (not equal) -> continue
+    RETURN                ; if Z=1 (equal) -> finished playback
+
+    ; TEMP < WRITEPTR -> show EEPROM[TEMP]
+    BANKSEL TEMP
+    MOVF    TEMP, W
     BANKSEL EEADR
-    MOVWF EEADR
+    MOVWF   EEADR
 
-    ; now read EEPROM at EEADR and display
-    CALL READ_EE
+    CALL    READ_EE
+    CALL    DELAY
 
-    ; delay so user can see it
-    CALL DELAY
-
-    ; increment TEMP (counter). Make sure TEMP's bank is selected
+    ; increment TEMP and loop
     BANKSEL TEMP
-    INCF TEMP,F
+    INCF    TEMP, F
 
-    ; compare TEMP to 10 (we'll do MOVF TEMP,W then XORLW 10)
-    MOVF TEMP,W
-    XORLW 10
-    BTFSS STATUS,2   ; Z = 1 if TEMP == 10 -> skip next GOTO
-    GOTO PB_LOOP
+    GOTO    PB_LOOP
 
     RETURN
     
@@ -400,7 +407,7 @@ SD_LOOP1:
     MOVWF TIME
     
 SD_LOOP2:
-    MOVLW 0x01	    ;ADJUST FOR FINE TUNING (0x04 IS PERFECT 1 SECOND)
+    MOVLW 0x01	    ;ADJUST FOR FINE TUNING (0x01 IS PERFECT 1 SECOND)
     MOVWF TEMP1
     
 SD_LOOP3:
