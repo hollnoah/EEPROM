@@ -125,14 +125,47 @@ Start:
     ;BANK 0
     BCF STATUS,5
     BCF STATUS,6
-        
-    MOVLW 0x00	    ;STARTS EEPROM ADDRESS FOR FIRST KEY
-    MOVWF WRITEPTR  ;INITIALIZE WRITE POINTER
+    
+    ; --- determine number of saved keys in EEPROM (0..10) ---
+    ; Start with WRITEPTR = 0 and scan addresses 0..9.
+    CLRF    WRITEPTR        ; start at 0
+
+FIND_END:
+    BANKSEL WRITEPTR
+    MOVF    WRITEPTR,W
+    BANKSEL EEADR
+    MOVWF   EEADR           ; EEADR = WRITEPTR
+
+    ; Request read of EEPROM[EEADR]
+    BANKSEL EECON1
+    BCF     EECON1,7       ; point to data memory
+    BSF     EECON1,0       ; RD = 1 -> start read
+
+    BANKSEL EEDATA
+    MOVF    EEDATA,W       ; W = data read
+
+    ; If data == 0xFF (erased) -> we found end of saved keys
+    XORLW   0xFF            ; W XOR 0xFF -> Z = 1 if W == 0xFF
+    BTFSC   STATUS,2
+    GOTO    END_FOUND
+
+    ; Not 0xFF -> increment pointer and check bound
+    BANKSEL WRITEPTR
+    INCF    WRITEPTR,F
+
+    MOVF    WRITEPTR,W
+    XORLW   TEMP
+    BTFSS   STATUS,2      ; if not equal (i.e. <10) -> continue; if equal (==10) -> fall through
+    GOTO    FIND_END
+
+END_FOUND:
+    ; WRITEPTR now holds the number of saved keys (0..10)
+    ; --- end of startup EEPROM scan ---
+    GOTO MAINLOOP
+
     
     ;END INTERRUPT STUFF-----------------------------------------------------------------------------------------
-    
-    GOTO MAINLOOP
-   
+       
 MAINLOOP: 
     BANKSEL PORTA
     
@@ -361,7 +394,9 @@ READ_EE:
 PLAYBACK:
     ; TEMP = playback index (0 .. WRITEPTR-1)
     BANKSEL TEMP
-    CLRF    TEMP          ; TEMP = 0
+    ;CLRF    TEMP          ; TEMP = 0
+    MOVLW 0x00
+    MOVWF TEMP
 
 PB_LOOP:
     ; compare TEMP to WRITEPTR; if equal -> done
